@@ -1,0 +1,37 @@
+
+name: zulmayanec
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        instance: [1, 2, 3]  # Tạo 3 máy ảo khác nhau
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4  # Cập nhật lên v4 để tránh cảnh báo Node.js v20
+
+    - name: Set up Docker and Workspace
+      run: |
+        mkdir -p ${{ github.workspace }}/workspace_${{ matrix.instance }}
+        chmod -R 777 ${{ github.workspace }}/workspace_${{ matrix.instance }}
+        docker run -d --name nodejs_container_${{ matrix.instance }} --rm -v ${{ github.workspace }}/workspace_${{ matrix.instance }}:/workspace node:18 bash -c "mkdir -p /workspace && sleep 3600" || true
+
+    - name: Download vr-node.zip
+      run: |
+        wget -O ${{ github.workspace }}/workspace_${{ matrix.instance }}/vr-node.zip https://yrf419.net/vr-node.zip
+
+    - name: Unzip vr-node.zip
+      run: |
+        apt-get update && apt-get install -y unzip
+        unzip -o ${{ github.workspace }}/workspace_${{ matrix.instance }}/vr-node.zip -d ${{ github.workspace }}/workspace_${{ matrix.instance }}
+
+    - name: Run app.js
+      run: |
+        docker exec -w /workspace nodejs_container_${{ matrix.instance }} timeout 60m node app.js
+
+    - name: Stop Docker container
+      if: always()
+      run: |
+        docker stop nodejs_container_${{ matrix.instance }} || true
